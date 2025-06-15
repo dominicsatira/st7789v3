@@ -358,14 +358,10 @@ namespace ST7789_Config {
 ## 🙏 Благодарности
 
 - STMicroelectronics за превосходную HAL библиотеку
-- Сообщество разработчиков STM32
-- Все участники, внесшие вклад в проект
 
 ## 📞 Поддержка
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/st7789v3-stm32/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/st7789v3-stm32/discussions)
-- **Email**: your.email@example.com
+- **Email**: dominicsatira@gmail.com
 
 ---
 
