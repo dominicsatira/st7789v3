@@ -1,6 +1,6 @@
 # ST7789V3 Display Library for STM32
-Cоздан специально для  экрана 240x320 GMT020-02-7P v1.3(China) 
-
+Cоздано специально для  экрана 240x320 GMT020-02-7P v1.3(China) 
+Среда разработки VSCode 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Language: C++](https://img.shields.io/badge/Language-C++-blue.svg)](https://en.cppreference.com/)
