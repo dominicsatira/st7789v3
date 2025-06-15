@@ -1,0 +1,21 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Проверка зависимостей
+# find_dependency(HAL) # Раскомментировать если есть официальная поддержка HAL через CMake
+
+# Включение целей
+include("${CMAKE_CURRENT_LIST_DIR}/ST7789V3Targets.cmake")
+
+# Проверка компонентов
+check_required_components(ST7789V3)
+
+# Переменные для обратной совместимости
+set(ST7789V3_LIBRARIES ST7789V3::st7789v3)
+set(ST7789V3_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../../include/st7789v3")
+
+# Вывод информации о найденной библиотеке
+if(NOT ST7789V3_FIND_QUIETLY)
+    message(STATUS "Found ST7789V3: ${PACKAGE_VERSION}")
+endif()
