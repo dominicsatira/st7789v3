@@ -1,7 +1,7 @@
 #ifndef ST7789V3_HPP
 #define ST7789V3_HPP
 
-#include "stm32f1xx_hal.h"
+#include "stm32f4xx_hal.h"
 #include "st7789v3_config.hpp"
 #include <cstdint>
 
@@ -90,15 +90,18 @@ public:
     // Функции масштабированного текста
     void drawCharScaled(uint16_t x, uint16_t y, char ch, uint16_t color, uint8_t scale, uint16_t bg_color = ST7789_Colors::BLACK);
     void drawStringScaled(uint16_t x, uint16_t y, const char* str, uint16_t color, uint8_t scale, uint16_t bg_color = ST7789_Colors::BLACK);
-    void drawStringUTF8Scaled(uint16_t x, uint16_t y, const char* utf8_str, uint16_t color, uint8_t scale, uint16_t bg_color = ST7789_Colors::BLACK);
-    
-    // Функции работы с буфером кадра
+    void drawStringUTF8Scaled(uint16_t x, uint16_t y, const char* utf8_str, uint16_t color, uint8_t scale, uint16_t bg_color = ST7789_Colors::BLACK);      // Функции работы с буфером кадра
     bool setFramebuffer(Framebuffer* fb);   // Установить буфер кадра
     void clearFramebuffer();                // Очистить буфер кадра
     Framebuffer* getFramebuffer() const;    // Получить указатель на буфер кадра
     void flushFramebuffer();                // Передать буфер кадра на дисплей
+    void flushFramebufferDMA();             // Передать буфер кадра на дисплей через DMA
     void flushFramebufferRegion(uint16_t x, uint16_t y, uint16_t w, uint16_t h); // Передать регион буфера
     bool isFramebufferEnabled() const;      // Проверить, включен ли буфер кадра
+    
+    // Функции для работы со статическим буфером
+    void flushStaticBuffer(uint16_t* buffer, uint16_t width, uint16_t height);
+    void flushStaticBufferDMA(uint16_t* buffer, uint16_t width, uint16_t height);
     
     // Utility функции
     static uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b);

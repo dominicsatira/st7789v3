@@ -1,8 +1,12 @@
 #include "st7789v3.hpp"
 #include "font8x16.hpp"
 #include "../framebuffer/framebuffer.hpp"
+#include "main.h"
 #include <algorithm>
 #include <cmath>
+
+// Внешняя переменная для отслеживания состояния DMA
+extern volatile bool dma_transfer_complete;
 
 ST7789V3::ST7789V3(SPI_HandleTypeDef* spi_handle,
                    const ST7789_GPIO& cs,
@@ -427,4 +431,114 @@ void ST7789V3::drawStringUTF8Scaled(uint16_t x, uint16_t y, const char* utf8_str
     
     // Fallback на drawStringScaled
     drawStringScaled(x, y, utf8_str, color, scale, bg_color);
+}
+
+// DMA версия flushFramebuffer
+void ST7789V3::flushFramebufferDMA() {
+    if (framebuffer_ == nullptr || !framebuffer_->isAllocated()) {
+        return; // Буфер не установлен или не инициализирован
+    }
+    
+    // Получаем указатель на буфер
+    const uint16_t* buffer = framebuffer_->getBuffer();
+    uint16_t width = framebuffer_->getWidth();
+    uint16_t height = framebuffer_->getHeight();
+    
+    // Используем общий метод для DMA передачи
+    flushStaticBufferDMA(const_cast<uint16_t*>(buffer), width, height);
+}
+
+// Передача статического буфера на дисплей (без DMA)
+void ST7789V3::flushStaticBuffer(uint16_t* buffer, uint16_t width, uint16_t height) {
+    if (buffer == nullptr) {
+        return;
+    }
+    
+    // Устанавливаем окно на весь экран
+    setWindow(0, 0, width - 1, height - 1);
+    
+    // Начинаем запись в память дисплея
+    writeCommand(ST7789_Commands::RAMWR);
+    
+    // Статический буфер для конвертации
+    const uint32_t chunk_size = 512;
+    static uint8_t byte_buffer[chunk_size * 2];
+    
+    HAL_GPIO_WritePin(dc_pin_.port, dc_pin_.pin, GPIO_PIN_SET); // DC = 1 для данных
+    HAL_GPIO_WritePin(cs_pin_.port, cs_pin_.pin, GPIO_PIN_RESET); // CS = 0
+    
+    uint32_t total_pixels = static_cast<uint32_t>(width) * height;
+    
+    // Передаем данные по частям
+    for (uint32_t i = 0; i < total_pixels; i += chunk_size) {
+        uint32_t current_chunk = std::min(chunk_size, total_pixels - i);
+        
+        // Конвертируем чанк в байты с правильным порядком
+        for (uint32_t j = 0; j < current_chunk; j++) {
+            uint16_t pixel = buffer[i + j];
+            byte_buffer[j * 2] = (pixel >> 8) & 0xFF;     // Старший байт
+            byte_buffer[j * 2 + 1] = pixel & 0xFF;        // Младший байт
+        }
+        
+        // Передаем чанк
+        HAL_StatusTypeDef status = HAL_SPI_Transmit(hspi_, byte_buffer, current_chunk * 2, ST7789_Config::SPI_TIMEOUT);
+        if (status != HAL_OK) {
+            break;
+        }
+    }
+    
+    HAL_GPIO_WritePin(cs_pin_.port, cs_pin_.pin, GPIO_PIN_SET); // CS = 1
+}
+
+// Передача статического буфера на дисплей через DMA
+void ST7789V3::flushStaticBufferDMA(uint16_t* buffer, uint16_t width, uint16_t height) {
+    if (buffer == nullptr) {
+        return;
+    }
+    
+    // Ждем завершения предыдущей DMA передачи
+    while (!dma_transfer_complete) {
+        HAL_Delay(1);
+    }
+    
+    // Устанавливаем окно на весь экран
+    setWindow(0, 0, width - 1, height - 1);
+    
+    // Начинаем запись в память дисплея
+    writeCommand(ST7789_Commands::RAMWR);
+    
+    // Подготавливаем буфер для DMA передачи
+    // Нужно конвертировать из 16-битных данных в 8-битные с правильным порядком байтов
+    uint32_t total_pixels = static_cast<uint32_t>(width) * height;
+    static uint8_t* byte_buffer = nullptr;
+    
+    // Выделяем буфер только один раз
+    if (byte_buffer == nullptr) {
+        byte_buffer = new uint8_t[total_pixels * 2];
+    }
+    
+    // Конвертируем данные
+    for (uint32_t i = 0; i < total_pixels; i++) {
+        uint16_t pixel = buffer[i];
+        byte_buffer[i * 2] = (pixel >> 8) & 0xFF;     // Старший байт
+        byte_buffer[i * 2 + 1] = pixel & 0xFF;        // Младший байт
+    }
+    
+    // Устанавливаем пины для передачи данных
+    HAL_GPIO_WritePin(dc_pin_.port, dc_pin_.pin, GPIO_PIN_SET); // DC = 1 для данных
+    HAL_GPIO_WritePin(cs_pin_.port, cs_pin_.pin, GPIO_PIN_RESET); // CS = 0
+    
+    // Устанавливаем флаг занятости DMA
+    dma_transfer_complete = false;
+    
+    // Запускаем DMA передачу
+    HAL_StatusTypeDef result = HAL_SPI_Transmit_DMA(hspi_, byte_buffer, total_pixels * 2);
+    
+    if (result != HAL_OK) {
+        // Если DMA не удалось запустить, сбрасываем флаг и завершаем CS
+        dma_transfer_complete = true;
+        HAL_GPIO_WritePin(cs_pin_.port, cs_pin_.pin, GPIO_PIN_SET); // CS = 1
+    }
+    
+    // Примечание: CS будет поднят в callback функции после завершения DMA
 }
