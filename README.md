@@ -53,7 +53,7 @@ cp -r st7789v3/ your_project/libraries/
 
 #### Вариант 2: Использование как подмодуль
 ```bash
-git submodule add https://github.com/your-username/st7789v3.git lib/st7789v3
+git submodule add https://github.com/dominicsatira/st7789v3.git lib/st7789v3
 ```
 
 ## 🚀 Быстрый старт
@@ -475,23 +475,11 @@ display.flushFramebufferDMA(); // Используйте DMA
 
 Если у вас есть вопросы или предложения:
 
-• 📧 **Email**: [support@yourproject.com](mailto:support@yourproject.com)  
-• 🐛 **Issues**: [GitHub Issues](https://github.com/yourusername/st7789v3/issues)  
-• 💬 **Discussions**: [GitHub Discussions](https://github.com/yourusername/st7789v3/discussions)  
+• 📧 **Email**: dominicsatira@gmail.com   
 
 ---
 
 **Сделано с ❤️ для сообщества STM32**
 
 ---
-
-## 📊 Статистика
-
-![GitHub stars](https://img.shields.io/github/stars/yourusername/st7789v3?style=social)
-![GitHub forks](https://img.shields.io/github/forks/yourusername/st7789v3?style=social)
-![GitHub issues](https://img.shields.io/github/issues/yourusername/st7789v3)
-![GitHub license](https://img.shields.io/github/license/yourusername/st7789v3)
-
----
-
 > **Примечание**: Этот проект специально создан для работы с дисплеем ST7789V3 320x240 пикселей и оптимизирован для микроконтроллеров STM32F411CEU6. Для других контроллеров могут потребоваться незначительные изменения в конфигурации.
