@@ -1,5 +1,5 @@
 # ST7789V3 Display Library for STM32
-Cоздан специально для  экрана 320x240 GMT020-02-7P v1.3(China) 
+Cоздан специально для  экрана 240x320 GMT020-02-7P v1.3(China) 
 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -46,7 +46,7 @@ Cоздан специально для  экрана 320x240 GMT020-02-7P v1.3(
 
 ```bash
 # Клонирование репозитория
-git clone https://github.com/yourusername/st7789v3-stm32.git
+git clone https://github.com/dominicsatira/st7789v3.git
 cd st7789v3-stm32
 
 # Сборка
@@ -64,7 +64,7 @@ make install
 #### Вариант 1: Добавление как подмодуль
 
 ```bash
-git submodule add https://github.com/yourusername/st7789v3-stm32.git lib/st7789v3
+git submodule add https://github.com/dominicsatira/st7789v3.git lib/st7789v3
 ```
 
 В вашем `CMakeLists.txt`:
