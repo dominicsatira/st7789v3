@@ -1,257 +1,384 @@
 /**
  * @file framebuffer_demo.cpp
- * @brief Демонстрация работы с буфером кадра ST7789V3
- * @author ST7789V3 Library
- * @version 1.0.0
+ * @brief Демонстрация работы с буфером кадра
+ * 
+ * Этот пример показывает:
+ * - Создание и использование буфера кадра
+ * - Плавную анимацию без мерцания
+ * - Оптимизацию производительности
+ * - Работу со статическим буфером
  */
 
 #include "st7789v3.hpp"
 #include "framebuffer.hpp"
-#include "stm32f1xx_hal.h"
+#include "main.h"
 #include <cmath>
 
-// Внешние объявления SPI
+// Внешние переменные из main.c
 extern SPI_HandleTypeDef hspi1;
 
 // Создание объектов
 ST7789V3 display(&hspi1, 
-                 ST7789_GPIO(ST7789_CS_PORT, ST7789_CS_PIN),
-                 ST7789_GPIO(ST7789_DC_PORT, ST7789_DC_PIN),
-                 ST7789_GPIO(ST7789_RST_PORT, ST7789_RST_PIN));
+                 ST7789_GPIO(GPIOA, GPIO_PIN_4),  // CS
+                 ST7789_GPIO(GPIOA, GPIO_PIN_3),  // DC
+                 ST7789_GPIO(GPIOA, GPIO_PIN_2)); // RST
 
 Framebuffer framebuffer(240, 320);
 
 /**
- * @brief Инициализация дисплея и буфера кадра
+ * @brief Инициализация дисплея и буфера
  */
-bool framebuffer_init() {
+void init_framebuffer_demo() {
     // Инициализация дисплея
     display.init();
     display.fillScreen(ST7789_Colors::BLACK);
     
     // Инициализация буфера кадра
-    if (!framebuffer.init()) {
-        // Ошибка выделения памяти
-        display.drawString(10, 10, "FB Init Error!", ST7789_Colors::RED);
-        return false;
+    if (framebuffer.init()) {
+        display.setFramebuffer(&framebuffer);
+        display.drawString(10, 10, "Framebuffer OK", ST7789_Colors::GREEN);
+    } else {
+        display.drawString(10, 10, "Framebuffer FAIL", ST7789_Colors::RED);
+        display.drawString(10, 30, "Using static buffer", ST7789_Colors::YELLOW);
+        initStaticFramebuffer();
     }
     
-    // Привязка буфера к дисплею
-    display.setFramebuffer(&framebuffer);
-    
-    return true;
+    HAL_Delay(1000);
 }
 
 /**
- * @brief Демонстрация базового рисования в буфер
+ * @brief Демонстрация простой анимации
  */
-void basic_framebuffer_demo() {
-    // Очистка буфера
-    framebuffer.clear(ST7789_Colors::BLUE);
+void demo_simple_animation() {
+    uint16_t x = 20, y = 160;
+    int16_t dx = 2, dy = 1;
     
-    // Рисование в буфер
-    framebuffer.drawString(10, 10, "Framebuffer Demo", ST7789_Colors::WHITE);
-    framebuffer.drawString(10, 30, "Drawing to buffer", ST7789_Colors::YELLOW);
-    
-    // Геометричесие фигуры
-    framebuffer.drawRect(20, 60, 100, 80, ST7789_Colors::RED);
-    framebuffer.fillRect(25, 65, 90, 70, ST7789_Colors::GREEN);
-    
-    framebuffer.drawCircle(180, 100, 40, ST7789_Colors::CYAN);
-    framebuffer.fillCircle(180, 100, 25, ST7789_Colors::MAGENTA);
-    
-    // Передача буфера на дисплей
-    display.flushFramebuffer();
-    
-    HAL_Delay(3000);
-}
-
-/**
- * @brief Демонстрация анимации с буфером кадра
- */
-void animation_demo() {
-    const uint16_t center_x = 120;
-    const uint16_t center_y = 160;
-    const uint16_t radius = 80;
-    
-    for (uint16_t angle = 0; angle < 720; angle += 5) {
+    for (int frame = 0; frame < 500; frame++) {
         // Очистка буфера
         framebuffer.clear(ST7789_Colors::BLACK);
         
-        // Вычисление позиции объекта
-        float rad = angle * 3.14159f / 180.0f;
-        uint16_t x = center_x + (uint16_t)(radius * cosf(rad));
-        uint16_t y = center_y + (uint16_t)(radius * sinf(rad));
-        
-        // Рисование траектории
-        framebuffer.drawCircle(center_x, center_y, radius, ST7789_Colors::GREEN);
-        
-        // Рисование движущегося объекта
+        // Рисование движущегося шарика
         framebuffer.fillCircle(x, y, 15, ST7789_Colors::RED);
-        framebuffer.drawCircle(x, y, 15, ST7789_Colors::WHITE);
+        
+        // Рисование следа
+        if (frame > 10) {
+            framebuffer.fillCircle(x - dx * 5, y - dy * 5, 8, ST7789_Colors::YELLOW);
+        }
+        if (frame > 20) {
+            framebuffer.fillCircle(x - dx * 10, y - dy * 10, 4, ST7789_Colors::GREEN);
+        }
         
         // Информация о кадре
-        framebuffer.drawString(10, 10, "Animation Demo", ST7789_Colors::WHITE);
+        char frame_info[32];
+        snprintf(frame_info, sizeof(frame_info), "Frame: %d", frame);
+        framebuffer.drawString(10, 10, frame_info, ST7789_Colors::WHITE);
+        framebuffer.drawStringUTF8(10, 30, "Анимация шарика", ST7789_Colors::CYAN);
         
-        // Обновление дисплея
+        // Передача буфера на дисплей
         display.flushFramebuffer();
         
-        // Задержка для плавной анимации
+        // Обновление позиции
+        x += dx;
+        y += dy;
+        
+        // Отскок от границ
+        if (x <= 15 || x >= 225) dx = -dx;
+        if (y <= 15 || y >= 305) dy = -dy;
+        
+        HAL_Delay(20);
+    }
+}
+
+/**
+ * @brief Демонстрация сложной анимации с несколькими объектами
+ */
+void demo_complex_animation() {
+    struct Ball {
+        float x, y;
+        float vx, vy;
+        uint16_t color;
+        uint8_t radius;
+    };
+    
+    Ball balls[] = {
+        {60, 80, 1.5f, 1.0f, ST7789_Colors::RED, 12},
+        {120, 160, -1.2f, 1.5f, ST7789_Colors::GREEN, 10},
+        {180, 240, 0.8f, -1.8f, ST7789_Colors::BLUE, 8},
+        {100, 200, -1.0f, -1.2f, ST7789_Colors::YELLOW, 15},
+        {200, 100, 1.8f, 0.5f, ST7789_Colors::CYAN, 7}
+    };
+    
+    const int num_balls = sizeof(balls) / sizeof(Ball);
+    
+    for (int frame = 0; frame < 1000; frame++) {
+        // Очистка буфера с эффектом затухания
+        framebuffer.clear(ST7789_Colors::BLACK);
+        
+        // Обновление и рисование шариков
+        for (int i = 0; i < num_balls; i++) {
+            Ball* ball = &balls[i];
+            
+            // Обновление позиции
+            ball->x += ball->vx;
+            ball->y += ball->vy;
+            
+            // Отскоки от границ
+            if (ball->x <= ball->radius || ball->x >= 240 - ball->radius) {
+                ball->vx = -ball->vx;
+            }
+            if (ball->y <= ball->radius || ball->y >= 320 - ball->radius) {
+                ball->vy = -ball->vy;
+            }
+            
+            // Ограничение в границах
+            if (ball->x < ball->radius) ball->x = ball->radius;
+            if (ball->x > 240 - ball->radius) ball->x = 240 - ball->radius;
+            if (ball->y < ball->radius) ball->y = ball->radius;
+            if (ball->y > 320 - ball->radius) ball->y = 320 - ball->radius;
+            
+            // Рисование шарика
+            framebuffer.fillCircle((uint16_t)ball->x, (uint16_t)ball->y, 
+                                 ball->radius, ball->color);
+            
+            // Рисование контура
+            framebuffer.drawCircle((uint16_t)ball->x, (uint16_t)ball->y, 
+                                 ball->radius + 1, ST7789_Colors::WHITE);
+        }
+        
+        // Информация о производительности
+        char info[64];
+        snprintf(info, sizeof(info), "Balls: %d, Frame: %d", num_balls, frame);
+        framebuffer.drawString(5, 5, info, ST7789_Colors::WHITE, ST7789_Colors::BLACK);
+        framebuffer.drawStringUTF8(5, 25, "Множественная анимация", 
+                                 ST7789_Colors::WHITE, ST7789_Colors::BLACK);
+        
+        // Передача буфера
+        display.flushFramebuffer();
+        
+        HAL_Delay(30);
+    }
+}
+
+/**
+ * @brief Демонстрация синусоидальной анимации
+ */
+void demo_sine_wave_animation() {
+    float phase = 0;
+    
+    for (int frame = 0; frame < 628; frame++) { // 2*PI * 100
+        framebuffer.clear(ST7789_Colors::BLACK);
+        
+        // Рисование синусоиды
+        for (int x = 0; x < 240; x++) {
+            float sine_val = sin((x * 0.05f) + phase);
+            int y = 160 + (int)(sine_val * 80);
+            
+            if (y >= 0 && y < 320) {
+                framebuffer.setPixel(x, y, ST7789_Colors::GREEN);
+                framebuffer.setPixel(x, y + 1, ST7789_Colors::GREEN);
+            }
+        }
+        
+        // Движущаяся точка по синусоиде
+        int marker_x = 120;
+        float marker_sine = sin((marker_x * 0.05f) + phase);
+        int marker_y = 160 + (int)(marker_sine * 80);
+        
+        framebuffer.fillCircle(marker_x, marker_y, 8, ST7789_Colors::RED);
+        
+        // Информация
+        char phase_info[32];
+        snprintf(phase_info, sizeof(phase_info), "Phase: %.2f", phase);
+        framebuffer.drawString(10, 10, phase_info, ST7789_Colors::WHITE);
+        framebuffer.drawStringUTF8(10, 30, "Синусоида", ST7789_Colors::CYAN);
+        
+        display.flushFramebuffer();
+        
+        phase += 0.1f;
         HAL_Delay(50);
     }
 }
 
 /**
- * @brief Демонстрация частичного обновления буфера
+ * @brief Демонстрация работы со статическим буфером
  */
-void partial_update_demo() {
-    // Статический фон
-    framebuffer.clear(ST7789_Colors::BLACK);
-    framebuffer.drawString(10, 10, "Partial Update Demo", ST7789_Colors::WHITE);
-    framebuffer.drawRect(50, 50, 140, 220, ST7789_Colors::GREEN);
+void demo_static_buffer() {
+    // Инициализация статического буфера
+    initStaticFramebuffer();
     
-    // Полная передача буфера
-    display.flushFramebuffer();
-    
-    HAL_Delay(1000);
-    
-    // Анимация в определенной области
-    for (uint16_t i = 0; i < 100; i++) {
-        // Очистка области анимации в буфере
-        framebuffer.fillRect(60, 60, 120, 200, ST7789_Colors::BLACK);
+    for (int i = 0; i < 200; i++) {
+        // Очистка статического буфера
+        clearStaticFramebuffer(ST7789_Colors::BLACK);
         
-        // Рисование движущегося объекта
-        uint16_t y = 70 + (i * 180) / 100;
-        framebuffer.fillRect(110, y, 20, 20, ST7789_Colors::RED);
+        // Рисование в статический буфер
+        int x = 120 + (int)(100 * cos(i * 0.1f));
+        int y = 68 + (int)(50 * sin(i * 0.1f));
         
-        // Частичное обновление только области анимации
-        display.flushFramebufferRegion(60, 60, 120, 200);
+        // Ограничение координат размерами статического буфера
+        if (x < 0) x = 0;
+        if (x >= 240) x = 239;
+        if (y < 0) y = 0;
+        if (y >= 136) y = 135;
+        
+        drawStaticRect(x - 10, y - 10, 20, 20, ST7789_Colors::BLUE);
+        drawStaticLine(0, y, 239, y, ST7789_Colors::GREEN);
+        drawStaticLine(x, 0, x, 135, ST7789_Colors::RED);
+        
+        // Текст в статическом буфере
+        drawStaticString(10, 10, "Static Buffer", ST7789_Colors::WHITE);
+        drawStaticStringUTF8(10, 30, "Статический буфер", ST7789_Colors::YELLOW);
+        
+        char pos_info[32];
+        snprintf(pos_info, sizeof(pos_info), "X:%d Y:%d", x, y);
+        drawStaticString(10, 50, pos_info, ST7789_Colors::CYAN);
+        
+        // Передача статического буфера на дисплей
+        display.flushStaticBuffer(getStaticFramebuffer(), 240, 136);
         
         HAL_Delay(50);
     }
 }
 
 /**
- * @brief Тест производительности буфера кадра
+ * @brief Сравнение производительности с буфером и без
  */
-void performance_test() {
+void demo_performance_comparison() {
     uint32_t start_time, end_time;
     
-    framebuffer.clear(ST7789_Colors::BLACK);
-    framebuffer.drawString(10, 10, "Performance Test", ST7789_Colors::WHITE);
-    display.flushFramebuffer();
+    // Тест без буфера (прямое рисование)
+    display.setFramebuffer(nullptr);
     
-    HAL_Delay(1000);
-    
-    // Тест рисования множества пикселей
     start_time = HAL_GetTick();
     
-    for (uint16_t i = 0; i < 10000; i++) {
-        uint16_t x = i % 240;
-        uint16_t y = (i / 240) % 320;
-        uint16_t color = i % 65536;
-        framebuffer.setPixel(x, y, color);
+    for (int i = 0; i < 100; i++) {
+        display.drawPixel(rand() % 240, rand() % 320, rand() % 0xFFFF);
     }
     
     end_time = HAL_GetTick();
+    uint32_t time_without_buffer = end_time - start_time;
     
-    // Отображение результата
-    char result[50];
-    sprintf(result, "10K pixels: %lu ms", end_time - start_time);
-    framebuffer.drawString(10, 30, result, ST7789_Colors::YELLOW);
+    // Тест с буфером
+    display.setFramebuffer(&framebuffer);
     
-    // Тест передачи буфера
     start_time = HAL_GetTick();
     
-    for (uint8_t i = 0; i < 10; i++) {
-        display.flushFramebuffer();
+    framebuffer.clear(ST7789_Colors::BLACK);
+    for (int i = 0; i < 100; i++) {
+        framebuffer.setPixel(rand() % 240, rand() % 320, rand() % 0xFFFF);
     }
+    display.flushFramebuffer();
     
     end_time = HAL_GetTick();
+    uint32_t time_with_buffer = end_time - start_time;
     
-    sprintf(result, "10 flushes: %lu ms", end_time - start_time);
-    framebuffer.drawString(10, 50, result, ST7789_Colors::CYAN);
-    
-    display.flushFramebuffer();
-    HAL_Delay(3000);
-}
-
-/**
- * @brief Демонстрация сложной графики
- */
-void complex_graphics_demo() {
+    // Отображение результатов
     framebuffer.clear(ST7789_Colors::BLACK);
     
-    // Рисование сложного паттерна
-    for (uint16_t x = 0; x < 240; x += 2) {
-        for (uint16_t y = 0; y < 320; y += 2) {
-            uint8_t r = (x * 255) / 240;
-            uint8_t g = (y * 255) / 320;
-            uint8_t b = ((x + y) * 255) / (240 + 320);
-            uint16_t color = framebuffer.rgb565(r, g, b);
-            framebuffer.setPixel(x, y, color);
-        }
+    framebuffer.drawStringUTF8(10, 10, "Тест производительности", ST7789_Colors::WHITE);
+    framebuffer.drawString(10, 40, "100 pixels drawing:", ST7789_Colors::YELLOW);
+    
+    char result1[32], result2[32], speedup[32];
+    snprintf(result1, sizeof(result1), "Direct: %lu ms", time_without_buffer);
+    snprintf(result2, sizeof(result2), "Buffered: %lu ms", time_with_buffer);
+    snprintf(speedup, sizeof(speedup), "Speedup: %.1fx", 
+             (float)time_without_buffer / time_with_buffer);
+    
+    framebuffer.drawString(10, 70, result1, ST7789_Colors::RED);
+    framebuffer.drawString(10, 90, result2, ST7789_Colors::GREEN);
+    framebuffer.drawString(10, 110, speedup, ST7789_Colors::CYAN);
+    
+    display.flushFramebuffer();
+    HAL_Delay(3000);
+}
+
+/**
+ * @brief Демонстрация частичного обновления экрана
+ */
+void demo_partial_update() {
+    framebuffer.clear(ST7789_Colors::BLACK);
+    
+    // Рисование статичного фона
+    framebuffer.drawRect(0, 0, 240, 320, ST7789_Colors::WHITE);
+    framebuffer.drawStringUTF8(10, 10, "Частичное обновление", ST7789_Colors::WHITE);
+    framebuffer.drawString(10, 30, "Static background", ST7789_Colors::GREEN);
+    
+    // Полное обновление фона
+    display.flushFramebuffer();
+    
+    // Анимация в определенной области
+    for (int i = 0; i < 100; i++) {
+        // Очистка только области анимации
+        framebuffer.fillRect(50, 100, 140, 100, ST7789_Colors::BLACK);
+        
+        // Рисование анимированного объекта
+        int x = 120 + (int)(60 * cos(i * 0.2f));
+        int y = 150 + (int)(40 * sin(i * 0.2f));
+        
+        framebuffer.fillCircle(x, y, 15, ST7789_Colors::RED);
+        framebuffer.drawCircle(x, y, 20, ST7789_Colors::YELLOW);
+        
+        // Обновление только измененной области
+        display.flushFramebufferRegion(50, 100, 140, 100);
+        
+        HAL_Delay(50);
     }
-    
-    // Наложение текста
-    framebuffer.drawStringScaled(20, 140, "COMPLEX", ST7789_Colors::WHITE, 3);
-    framebuffer.drawStringScaled(20, 180, "GRAPHICS", ST7789_Colors::WHITE, 3);
-    
-    display.flushFramebuffer();
-    HAL_Delay(3000);
 }
 
 /**
- * @brief Демонстрация работы с UTF-8 текстом
+ * @brief Главная функция демонстрации буфера кадра
  */
-void utf8_text_demo() {
-    framebuffer.clear(ST7789_Colors::BLUE);
-    
-    // Различные языки
-    framebuffer.drawString(10, 20, "English Text", ST7789_Colors::WHITE);
-    framebuffer.drawStringUTF8(10, 40, "Русский текст", ST7789_Colors::YELLOW);
-    framebuffer.drawStringUTF8(10, 60, "Кириллица", ST7789_Colors::GREEN);
-    
-    // Масштабированный текст
-    framebuffer.drawStringUTF8Scaled(10, 100, "БОЛЬШОЙ", ST7789_Colors::RED, 2);
-    framebuffer.drawStringUTF8Scaled(10, 140, "ТЕКСТ", ST7789_Colors::RED, 2);
-    
-    // Цветной текст
-    framebuffer.drawStringUTF8(10, 180, "Цветной", ST7789_Colors::CYAN, ST7789_Colors::MAGENTA);
-    framebuffer.drawStringUTF8(10, 200, "фон текста", ST7789_Colors::WHITE, ST7789_Colors::RED);
-    
-    display.flushFramebuffer();
-    HAL_Delay(3000);
-}
-
-/**
- * @brief Основная функция демонстрации буфера кадра
- */
-void framebuffer_demo_main() {
+void run_framebuffer_demo() {
     // Инициализация
-    if (!framebuffer_init()) {
-        // Ошибка инициализации - бесконечный цикл
-        while (1) {
-            HAL_Delay(1000);
-        }
-    }
+    init_framebuffer_demo();
     
-    // Запуск демонстраций
     while (1) {
-        basic_framebuffer_demo();
-        animation_demo();
-        partial_update_demo();
-        performance_test();
-        complex_graphics_demo();
-        utf8_text_demo();
+        // Простая анимация
+        demo_simple_animation();
+        HAL_Delay(1000);
+        
+        // Сложная анимация
+        demo_complex_animation();
+        HAL_Delay(1000);
+        
+        // Синусоидальная анимация
+        demo_sine_wave_animation();
+        HAL_Delay(1000);
+        
+        // Работа со статическим буфером
+        demo_static_buffer();
+        HAL_Delay(1000);
+        
+        // Сравнение производительности
+        demo_performance_comparison();
+        HAL_Delay(2000);
+        
+        // Частичное обновление
+        demo_partial_update();
+        HAL_Delay(2000);
     }
 }
 
 /**
- * @brief Функция для вызова из main()
- * @note Добавьте вызов этой функции в ваш main()
- * @warning Требует минимум 160 КБ свободной RAM
+ * @brief Простой пример для быстрого старта с буфером
  */
-void run_framebuffer_example() {
-    framebuffer_demo_main();
+void quick_framebuffer_example() {
+    // Инициализация
+    display.init();
+    framebuffer.init();
+    display.setFramebuffer(&framebuffer);
+    
+    // Анимация
+    for (int i = 0; i < 100; i++) {
+        // Очистка буфера
+        framebuffer.clear(ST7789_Colors::BLACK);
+        
+        // Рисование в буфер
+        framebuffer.drawString(10, 10, "Framebuffer Demo", ST7789_Colors::WHITE);
+        framebuffer.fillCircle(120 + i, 160, 20, ST7789_Colors::RED);
+        
+        // Передача на дисплей
+        display.flushFramebuffer();
+        
+        HAL_Delay(50);
+    }
 }

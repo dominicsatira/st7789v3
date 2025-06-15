@@ -1,21 +1,25 @@
 /**
  * @file basic_drawing.cpp
- * @brief Пример базовых функций рисования с ST7789V3
- * @author ST7789V3 Library
- * @version 1.0.0
+ * @brief Базовый пример рисования с ST7789V3
+ * 
+ * Этот пример демонстрирует основные возможности библиотеки ST7789V3:
+ * - Инициализация дисплея
+ * - Основные графические примитивы
+ * - Вывод текста
+ * - Работа с цветами
  */
 
 #include "st7789v3.hpp"
-#include "stm32f1xx_hal.h"
+#include "main.h"
 
-// Внешние объявления SPI (должны быть определены в main.c)
+// Внешние переменные из main.c
 extern SPI_HandleTypeDef hspi1;
 
 // Создание объекта дисплея
 ST7789V3 display(&hspi1, 
-                 ST7789_GPIO(ST7789_CS_PORT, ST7789_CS_PIN),
-                 ST7789_GPIO(ST7789_DC_PORT, ST7789_DC_PIN),
-                 ST7789_GPIO(ST7789_RST_PORT, ST7789_RST_PIN));
+                 ST7789_GPIO(GPIOA, GPIO_PIN_4),  // CS
+                 ST7789_GPIO(GPIOA, GPIO_PIN_3),  // DC  
+                 ST7789_GPIO(GPIOA, GPIO_PIN_2)); // RST
 
 /**
  * @brief Инициализация дисплея
@@ -23,154 +27,239 @@ ST7789V3 display(&hspi1,
 void display_init() {
     display.init();
     display.fillScreen(ST7789_Colors::BLACK);
+    HAL_Delay(100);
 }
 
 /**
- * @brief Демонстрация базовых примитивов
+ * @brief Демонстрация основных графических примитивов
  */
-void draw_primitives() {
+void demo_basic_drawing() {
     // Очистка экрана
     display.fillScreen(ST7789_Colors::BLACK);
+    HAL_Delay(500);
+    
+    // Рисование точек
+    for (int i = 0; i < 50; i++) {
+        uint16_t x = rand() % 240;
+        uint16_t y = rand() % 320;
+        uint16_t color = rand() % 0xFFFF;
+        display.drawPixel(x, y, color);
+    }
+    HAL_Delay(2000);
     
     // Рисование линий
-    display.drawLine(0, 0, 239, 0, ST7789_Colors::RED);        // Верхняя
-    display.drawLine(0, 319, 239, 319, ST7789_Colors::RED);    // Нижняя
-    display.drawLine(0, 0, 0, 319, ST7789_Colors::RED);        // Левая
-    display.drawLine(239, 0, 239, 319, ST7789_Colors::RED);    // Правая
+    display.fillScreen(ST7789_Colors::BLACK);
+    display.drawLine(0, 0, 239, 319, ST7789_Colors::WHITE);
+    display.drawLine(239, 0, 0, 319, ST7789_Colors::WHITE);
+    display.drawLine(120, 0, 120, 319, ST7789_Colors::RED);
+    display.drawLine(0, 160, 239, 160, ST7789_Colors::GREEN);
+    HAL_Delay(2000);
     
-    // Диагональные линии
-    display.drawLine(0, 0, 239, 319, ST7789_Colors::GREEN);
-    display.drawLine(239, 0, 0, 319, ST7789_Colors::GREEN);
+    // Рисование прямоугольников
+    display.fillScreen(ST7789_Colors::BLACK);
+    display.drawRect(20, 20, 200, 100, ST7789_Colors::BLUE);
+    display.drawRect(40, 40, 160, 60, ST7789_Colors::GREEN);
+    display.fillRect(60, 50, 120, 40, ST7789_Colors::RED);
+    HAL_Delay(2000);
     
-    // Прямоугольники
-    display.drawRect(50, 50, 100, 80, ST7789_Colors::BLUE);
-    display.fillRect(60, 60, 80, 60, ST7789_Colors::CYAN);
+    // Рисование окружностей
+    display.fillScreen(ST7789_Colors::BLACK);
+    display.drawCircle(120, 160, 80, ST7789_Colors::CYAN);
+    display.drawCircle(120, 160, 60, ST7789_Colors::MAGENTA);
+    display.fillCircle(120, 160, 40, ST7789_Colors::YELLOW);
+    display.fillCircle(120, 160, 20, ST7789_Colors::RED);
+    HAL_Delay(2000);
+}
+
+/**
+ * @brief Демонстрация работы с текстом
+ */
+void demo_text() {
+    display.fillScreen(ST7789_Colors::BLACK);
     
-    // Окружности
-    display.drawCircle(120, 200, 50, ST7789_Colors::YELLOW);
-    display.fillCircle(120, 200, 30, ST7789_Colors::MAGENTA);
+    // ASCII текст
+    display.drawString(10, 10, "Hello, World!", ST7789_Colors::WHITE);
+    display.drawString(10, 30, "ST7789V3 Library", ST7789_Colors::GREEN);
+    display.drawString(10, 50, "ASCII Text Support", ST7789_Colors::BLUE);
+    
+    // UTF-8 кириллица
+    display.drawStringUTF8(10, 80, "Привет, мир!", ST7789_Colors::CYAN);
+    display.drawStringUTF8(10, 100, "Поддержка кириллицы", ST7789_Colors::MAGENTA);
+    display.drawStringUTF8(10, 120, "UTF-8 кодировка", ST7789_Colors::YELLOW);
+    
+    // Информация о дисплее
+    display.drawString(10, 150, "Display: 240x320", ST7789_Colors::WHITE);
+    display.drawString(10, 170, "Colors: RGB565", ST7789_Colors::WHITE);
+    display.drawString(10, 190, "Font: 8x16 pixels", ST7789_Colors::WHITE);
     
     HAL_Delay(3000);
 }
 
 /**
- * @brief Демонстрация цветовой палитры
+ * @brief Демонстрация масштабированного текста
  */
-void color_demo() {
+void demo_scaled_text() {
     display.fillScreen(ST7789_Colors::BLACK);
     
-    // Цветные полосы
-    const uint16_t colors[] = {
-        ST7789_Colors::RED,
-        ST7789_Colors::GREEN,
-        ST7789_Colors::BLUE,
-        ST7789_Colors::YELLOW,
-        ST7789_Colors::CYAN,
-        ST7789_Colors::MAGENTA,
+    // Разные размеры текста
+    display.drawStringScaled(10, 10, "Scale 1x", ST7789_Colors::WHITE, 1);
+    display.drawStringScaled(10, 40, "Scale 2x", ST7789_Colors::GREEN, 2);
+    display.drawStringScaled(10, 80, "3x", ST7789_Colors::BLUE, 3);
+    display.drawStringScaled(10, 140, "4x", ST7789_Colors::RED, 4);
+    
+    // Кириллица масштабированная
+    display.drawStringUTF8Scaled(10, 220, "Текст 2x", ST7789_Colors::CYAN, 2);
+    display.drawStringUTF8Scaled(10, 260, "3x", ST7789_Colors::MAGENTA, 3);
+    
+    HAL_Delay(3000);
+}
+
+/**
+ * @brief Демонстрация работы с цветами
+ */
+void demo_colors() {
+    display.fillScreen(ST7789_Colors::BLACK);
+    
+    // Базовые цвета
+    const char* color_names[] = {
+        "RED", "GREEN", "BLUE", "YELLOW", 
+        "CYAN", "MAGENTA", "WHITE"
+    };
+    
+    uint16_t colors[] = {
+        ST7789_Colors::RED, ST7789_Colors::GREEN, ST7789_Colors::BLUE, 
+        ST7789_Colors::YELLOW, ST7789_Colors::CYAN, ST7789_Colors::MAGENTA, 
         ST7789_Colors::WHITE
     };
     
-    const uint8_t num_colors = sizeof(colors) / sizeof(colors[0]);
-    const uint16_t strip_height = 320 / num_colors;
-    
-    for (uint8_t i = 0; i < num_colors; i++) {
-        display.fillRect(0, i * strip_height, 240, strip_height, colors[i]);
+    for (int i = 0; i < 7; i++) {
+        display.fillRect(10, 10 + i * 40, 60, 30, colors[i]);
+        display.drawString(80, 20 + i * 40, color_names[i], ST7789_Colors::WHITE);
     }
     
-    // Градиент
-    for (uint16_t x = 0; x < 240; x++) {
-        uint8_t red = (x * 255) / 240;
-        uint16_t color = display.rgb565(red, 128, 255 - red);
-        display.drawLine(x, 280, x, 319, color);
-    }
+    // Custom цвета через RGB565
+    display.fillRect(150, 10, 80, 30, display.rgb565(255, 128, 0));   // Оранжевый
+    display.drawString(150, 50, "Orange", ST7789_Colors::WHITE);
+    
+    display.fillRect(150, 70, 80, 30, display.rgb565(128, 0, 128));   // Фиолетовый
+    display.drawString(150, 110, "Purple", ST7789_Colors::WHITE);
+    
+    display.fillRect(150, 130, 80, 30, display.rgb565(255, 192, 203)); // Розовый
+    display.drawString(150, 170, "Pink", ST7789_Colors::WHITE);
     
     HAL_Delay(3000);
 }
 
 /**
- * @brief Демонстрация пикселей
+ * @brief Демонстрация поворота дисплея
  */
-void pixel_demo() {
-    display.fillScreen(ST7789_Colors::BLACK);
+void demo_rotation() {
+    const char* rotation_names[] = {
+        "Rotation: 0°", "Rotation: 90°", 
+        "Rotation: 180°", "Rotation: 270°"
+    };
     
-    // Случайные пиксели
-    for (uint16_t i = 0; i < 1000; i++) {
-        uint16_t x = rand() % 240;
-        uint16_t y = rand() % 320;
-        uint16_t color = rand() % 65536;
-        display.drawPixel(x, y, color);
-    }
-    
-    HAL_Delay(2000);
-}
-
-/**
- * @brief Тест скорости заливки
- */
-void fill_speed_test() {
-    uint32_t start_time, end_time;
-    
-    // Тест заливки экрана
-    start_time = HAL_GetTick();
-    for (uint8_t i = 0; i < 10; i++) {
-        display.fillScreen(ST7789_Colors::RED);
+    for (int rot = 0; rot < 4; rot++) {
+        display.setRotation(rot);
         display.fillScreen(ST7789_Colors::BLACK);
+        
+        // Рисование рамки для ориентации
+        display.drawRect(0, 0, 240, 320, ST7789_Colors::WHITE);
+        display.drawRect(5, 5, 230, 310, ST7789_Colors::RED);
+        
+        // Текст с указанием поворота
+        display.drawString(20, 20, rotation_names[rot], ST7789_Colors::WHITE);
+        display.drawStringUTF8(20, 40, "Поворот дисплея", ST7789_Colors::GREEN);
+        
+        // Индикаторы углов
+        display.fillCircle(20, 20, 10, ST7789_Colors::BLUE);   // Верхний левый
+        display.fillCircle(220, 20, 10, ST7789_Colors::GREEN); // Верхний правый
+        display.fillCircle(220, 300, 10, ST7789_Colors::RED);  // Нижний правый
+        display.fillCircle(20, 300, 10, ST7789_Colors::YELLOW);// Нижний левый
+        
+        HAL_Delay(2000);
     }
-    end_time = HAL_GetTick();
     
-    // Вывод результата (требует подключения отладочного вывода)
-    // printf("Fill screen test: %lu ms for 20 operations\n", end_time - start_time);
-    
-    HAL_Delay(1000);
+    // Возврат к нормальной ориентации
+    display.setRotation(0);
 }
 
 /**
- * @brief Геометрические паттерны
+ * @brief Демонстрация инверсии цветов
  */
-void geometric_patterns() {
+void demo_color_inversion() {
     display.fillScreen(ST7789_Colors::BLACK);
-    
-    // Концентрические окружности
-    for (uint8_t r = 10; r < 100; r += 10) {
-        uint16_t color = display.rgb565(r * 2, 255 - r * 2, 128);
-        display.drawCircle(120, 160, r, color);
-    }
+    display.drawString(10, 10, "Normal Colors", ST7789_Colors::WHITE);
+    display.drawString(10, 30, "White on Black", ST7789_Colors::WHITE);
+    display.fillRect(10, 60, 100, 50, ST7789_Colors::RED);
+    display.fillRect(120, 60, 100, 50, ST7789_Colors::GREEN);
     
     HAL_Delay(2000);
     
-    // Сетка
-    display.fillScreen(ST7789_Colors::BLACK);
-    for (uint16_t x = 0; x < 240; x += 20) {
-        display.drawLine(x, 0, x, 319, ST7789_Colors::GREEN);
-    }
-    for (uint16_t y = 0; y < 320; y += 20) {
-        display.drawLine(0, y, 239, y, ST7789_Colors::GREEN);
-    }
+    // Включение инверсии
+    display.invertOn();
+    display.drawString(10, 130, "Inverted Colors", ST7789_Colors::WHITE);
+    display.drawString(10, 150, "Black on White", ST7789_Colors::WHITE);
+    display.fillRect(10, 180, 100, 50, ST7789_Colors::RED);
+    display.fillRect(120, 180, 100, 50, ST7789_Colors::GREEN);
     
     HAL_Delay(2000);
+    
+    // Отключение инверсии
+    display.invertOff();
 }
 
 /**
- * @brief Основная функция демонстрации
+ * @brief Главная функция демонстрации
  */
-void basic_drawing_demo() {
+void run_basic_drawing_demo() {
     // Инициализация
     display_init();
     
-    // Запуск демонстраций
     while (1) {
-        draw_primitives();
-        color_demo();
-        pixel_demo();
-        fill_speed_test();
-        geometric_patterns();
+        // Демонстрация базового рисования
+        demo_basic_drawing();
+        
+        // Демонстрация текста
+        demo_text();
+        
+        // Демонстрация масштабированного текста
+        demo_scaled_text();
+        
+        // Демонстрация цветов
+        demo_colors();
+        
+        // Демонстрация поворота
+        demo_rotation();
+        
+        // Демонстрация инверсии цветов
+        demo_color_inversion();
+        
+        // Пауза перед повтором
+        HAL_Delay(2000);
     }
 }
 
 /**
- * @brief Функция для вызова из main()
- * @note Добавьте вызов этой функции в ваш main()
+ * @brief Простой пример для быстрого старта
  */
-void run_basic_drawing_example() {
-    basic_drawing_demo();
+void quick_start_example() {
+    // Инициализация дисплея
+    display.init();
+    
+    // Заливка экрана синим цветом
+    display.fillScreen(ST7789_Colors::BLUE);
+    
+    // Рисование белой линии
+    display.drawLine(0, 0, 239, 319, ST7789_Colors::WHITE);
+    
+    // Рисование красного прямоугольника
+    display.fillRect(50, 50, 140, 100, ST7789_Colors::RED);
+    
+    // Вывод текста
+    display.drawString(10, 10, "Hello ST7789V3!", ST7789_Colors::WHITE);
+    display.drawStringUTF8(10, 200, "Привет, дисплей!", ST7789_Colors::YELLOW);
+    
+    // Рисование зелёной окружности
+    display.fillCircle(120, 160, 30, ST7789_Colors::GREEN);
 }
