@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 # Информация о проекте
 project(ST7789V3_Library
-    VERSION 1.0.0
+    VERSION 1.1.1
     DESCRIPTION "ST7789V3 TFT LCD Display Library for STM32"
     LANGUAGES C CXX ASM
 )
